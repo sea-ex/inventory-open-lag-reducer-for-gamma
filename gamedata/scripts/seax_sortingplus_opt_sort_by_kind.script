@@ -1,26 +1,8 @@
-function on_game_start()
-    if devtools_profiler then
-        -- for Anomaly DevTools lua profiler
-        devtools_profiler.register_module("seax_sortingplus_opt_sort_by_kind")
-    end
-end
-
-local function with_profiler(name, fn)
-    if not devtools_profiler then return fn end
-
-    return function(_, a, b)
-        devtools_profiler.start_timer(name)
-        local ret = fn(_, a, b)
-        devtools_profiler.end_timer(name)
-        return ret
-    end
-end
-
 get_sort_kind = zzz_rax_sortingplus_mcm.get_sort_kind
 
 function sort_by_kind_factory(t)
     -- grab references to zzz_rax_sortingplus_mcm variables in factory instead of
-    -- script scope in case they're reassigned at some point
+    -- script scope in case they're reassigned at some point (reloading from MCM etc.)
     local SORTFAVS = zzz_rax_sortingplus_mcm.SORTFAVS
     local SORTJUNK = zzz_rax_sortingplus_mcm.SORTJUNK
     local favorite_itms = zzz_rax_sortingplus_mcm.favorite_itms
@@ -80,7 +62,7 @@ function sort_by_kind_factory(t)
         end
     end
 
-    local sort_by_kind_custom = with_profiler("seax_sortingplus_opt_sort_by_kind.sort_by_kind_custom", function(_, a, b)
+    local sort_by_kind_custom = function(_, a, b)
         -- HOT LOOP
         a = t[a]
         b = t[b]
@@ -145,53 +127,54 @@ function sort_by_kind_factory(t)
         end
 
         return a_kind_order < b_kind_order
-    end)
+    end
 
 
     -- SortingPlus zzz_rax_sortingplus_mcm overrides this UICellContainer.FindFreeCell
-    -- to use its own ab_k[] variable which is produced during the sort's sort_info().
-    -- Override it to use our own precalculated stuff instead.
-    local patched_custom_FindFreeCell = with_profiler("seax_sortingplus_opt_sort_by_kind.patched_custom_FindFreeCell",
-        function(self, obj, sec)
-            if (not sec) then
-                if (not obj) then return false end
-                sec = obj and obj:section()
+    -- to use its own ab_k[] etc. variables which are produced during the sort's sort_info().
+    -- Patch it to use our own precalculated stuff instead (sec_to_width/height, kind_to_order)
+    local patched_custom_FindFreeCell = function(self, obj, sec)
+        if (not sec) then
+            if (not obj) then return false end
+            sec = obj and obj:section()
+        end
+
+        ----------------- seax patch begin
+        local w = sec_to_width[sec]
+        local h = sec_to_height[sec]
+        ----------------- seax patch end
+        -- Avoid icons that don't fit
+        if w > self.cols then return false end
+
+        -- Sorting by kind: when sorting a new kind, always start from last row taken by previous kind
+        if self.sort_method == "kind" then
+            local sort_kind = (magazine_binder and obj and magazine_binder.is_carried_mag(obj:id()) and "loadout")
+                or (SORTFAVS and favorite_itms[sec])
+                or (SORTJUNK and junk_itms[sec])
+                or sec_to_kind[sec]
+            self.rKind.current = kind_to_order[sort_kind]
+
+            if (self.rKind.last ~= self.rKind.current) then
+                self.rKind.last = self.rKind.current
+                self.rKind.row = self.row_end + 1
             end
+        end
 
-            local w = sec_to_width[sec]
-            local h = sec_to_height[sec]
-            -- Avoid icons that don't fit
-            if w > self.cols then return false end
+        local row_s = self.rKind.row
+        local rows = #self.grid
+        local cols = self.cols + 1 - w
+        self:Print(nil, "FindFreeCell for [%s] (rows: %s, cols: %s, W: %s, H: %s)", sec, rows, cols, w, h)
 
-            -- Sorting by kind: when sorting a new kind, always start from last row taken by previous kind
-            if self.sort_method == "kind" then
-                local sort_kind = (magazine_binder and obj and magazine_binder.is_carried_mag(obj:id()) and "loadout")
-                    or (SORTFAVS and favorite_itms[sec])
-                    or (SORTJUNK and junk_itms[sec])
-                    or sec_to_kind[sec]
-                self.rKind.current = kind_to_order[sort_kind]
-
-                if (self.rKind.last ~= self.rKind.current) then
-                    self.rKind.last = self.rKind.current
-                    self.rKind.row = self.row_end + 1
-                end
+        for r = row_s, rows do
+            for c = 1, cols do
+                if self:IsFreeRoom(r, c, w, h) then return self:TakeRoom(r, c, w, h) end
             end
+        end
 
-            local row_s = self.rKind.row
-            local rows = #self.grid
-            local cols = self.cols + 1 - w
-            self:Print(nil, "FindFreeCell for [%s] (rows: %s, cols: %s, W: %s, H: %s)", sec, rows, cols, w, h)
+        self:Grow()
 
-            for r = row_s, rows do
-                for c = 1, cols do
-                    if self:IsFreeRoom(r, c, w, h) then return self:TakeRoom(r, c, w, h) end
-                end
-            end
-
-            self:Grow()
-
-            return self:FindFreeCell(obj, sec)
-        end)
+        return self:FindFreeCell(obj, sec)
+    end
 
     return sort_by_kind_custom, patched_custom_FindFreeCell
 end

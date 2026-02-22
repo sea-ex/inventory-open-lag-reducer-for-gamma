@@ -18,22 +18,6 @@
 -- 500-700ms now takes 30ms (~90-95% reduction).
 local sort_by_kind_factory = seax_sortingplus_opt_sort_by_kind.sort_by_kind_factory
 
-function on_game_start()
-	if devtools_profiler then
-		devtools_profiler.register_module("zzz_ray_sortingplus_mcm")
-	end
-end
-
-local function with_profiler(name, fn)
-	if not devtools_profiler then return fn end
-
-	return function(a, b)
-		devtools_profiler.start_timer(name)
-		local ret = fn(a, b)
-		devtools_profiler.end_timer(name)
-	end
-end
-
 -- Patch UICellContainer:Reinit to call our own sort factory.
 -- I have no idea when the sort_order would be something other than
 -- "kind" (which SortingPlus patches to mean something else anyways)
@@ -53,7 +37,7 @@ function utils_ui.UICellContainer:Reinit(t, tf)
 	self:Print(nil, "Reset | START Number of cells: %s", #self.cell)
 
 	local sort_order = self:GetSortMethod()
-	-- seax patch begin
+	----------------- seax patch begin
 	local original_FindFreeCell = nil
 	if (self.sort_method == "kind") then
 		sort_by_kind_custom, patched_custom_FindFreeCell = sort_by_kind_factory(t)
@@ -65,7 +49,7 @@ function utils_ui.UICellContainer:Reinit(t, tf)
 		-- just do it for this specific sort though and clean up after ourselves.
 		self.FindFreeCell = patched_custom_FindFreeCell
 	end
-	-- seax patch end
+	----------------- seax patch end
 
 	if self.showcase then
 		for i, sec in spairs(t, sort_order) do
@@ -77,11 +61,11 @@ function utils_ui.UICellContainer:Reinit(t, tf)
 		end
 	end
 
-	-- seax patch begin
+	----------------- seax patch begin
 	if original_FindFreeCell then
 		self.FindFreeCell = original_FindFreeCell
 	end
-	-- seax patch end
+	----------------- seax patch end
 
 	self.ignore_scroll = false
 	self:Print(nil, "Reset | END Number of cells: %s", #self.cell)
