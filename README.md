@@ -14,19 +14,12 @@ The mod currently optimizes only the sorting of inventory items, originally prov
 
 #### Problem description
 
-The SortingPlus mod makes the utils_ui.sort_by_kind function
-perform a LOT of work on each comparator call, for both a and b always again.
+When you open an inventory, the inventory items get sorted. The SortingPlus mod makes the `utils_ui.sort_by_kind` function
+perform a LOT of work on each comparator call, for both a and b always again. For medium to large inventories, this can rack up 50-100k calls to the comparator, each of which read sections from XML and other nontrivial things.
 
 #### Fix description
 
-This module optimizes the situation wrapping the sorter to a factory
-which first does an O(n) pass on the items-to-be-sorted to precompute certain values
-that are used in the comparison.
-Then, we also patch `utils_ui.UICellContainer.FindFreeCell` for the duration of
-`UICellContainer:Reinit` as SortingPlus' overrided version utilizes certain variables
-that were computed by the last sort. This was also very slightly optimized.
-As a result, **a sort for a very large inventory that previously took
-500-700ms now takes 30ms (~90-95% reduction)**.
+This mod optimizes the situation wrapping the sorter to a factory which first does an O(n) pass on the items-to-be-sorted to precompute certain values that are used in the comparison. Then, we also patch `utils_ui.UICellContainer.FindFreeCell` for the duration of `UICellContainer:Reinit` as SortingPlus' overrided version utilizes certain variables that were computed by the last sort. This was also very slightly optimized. As a result, a sort for a very large inventory that previously took 500-700ms now takes 30ms (~90-95% reduction). This results in a total 25-50% reduction in the freeze time when opening a large stash.
 
 ## Thank yous
 
