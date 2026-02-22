@@ -1,0 +1,90 @@
+-- SeaX's Inventory Open Lag Remover
+-- "110 - SortingPlus - RavenAscendant" patches
+--
+-- PROBLEM STATEMENT:
+-- The SortingPlus mod makes the utils_ui.sort_by_kind function
+-- perform a LOT of work on each comparator call, for both a and b always again.
+--
+-- FIX DESCRIPTION:
+-- This module optimizes the situation wrapping the sorter to a factory
+-- which first does an O(n) pass on the items-to-be-sorted to precompute certain values
+-- that are used in the comparison.
+--
+-- Then, we also patch utils_ui.UICellContainer.FindFreeCell for the duration of
+-- UICellContainer:Reinit as SortingPlus' overrided version utilizes certain variables
+-- that were computed by the last sort. This was also very slightly optimized.
+--
+-- As a result, a sort for a very large inventory that previously took
+-- 500-700ms now takes 30ms (~90-95% reduction).
+local sort_by_kind_factory = seax_sortingplus_opt_sort_by_kind.sort_by_kind_factory
+
+function on_game_start()
+	if devtools_profiler then
+		devtools_profiler.register_module("zzz_ray_sortingplus_mcm")
+	end
+end
+
+local function with_profiler(name, fn)
+	if not devtools_profiler then return fn end
+
+	return function(a, b)
+		devtools_profiler.start_timer(name)
+		local ret = fn(a, b)
+		devtools_profiler.end_timer(name)
+	end
+end
+
+-- Patch UICellContainer:Reinit to call our own sort factory.
+-- I have no idea when the sort_order would be something other than
+-- "kind" (which SortingPlus patches to mean something else anyways)
+-- so just implement that for now.
+--
+-- Patched regions indicated by "seax patch begin" and "seax patch end" comments
+function utils_ui.UICellContainer:Reinit(t, tf)
+	self:Reset()
+
+	-- If no inventory is passed, this function will just clear cells
+	if (not t) then
+		return
+	end
+
+	-- Create cells
+	self.ignore_scroll = true
+	self:Print(nil, "Reset | START Number of cells: %s", #self.cell)
+
+	local sort_order = self:GetSortMethod()
+	-- seax patch begin
+	local original_FindFreeCell = nil
+	if (self.sort_method == "kind") then
+		sort_by_kind_custom, patched_custom_FindFreeCell = sort_by_kind_factory(t)
+
+		sort_order = sort_by_kind_custom
+		original_FindFreeCell = self.FindFreeCell
+		-- kinda dirty but the overrided FindFreeCell in zzz_rax_sortingplus_mcm references
+		-- state that is built up during its sort functions so we need to do the same
+		-- just do it for this specific sort though and clean up after ourselves.
+		self.FindFreeCell = patched_custom_FindFreeCell
+	end
+	-- seax patch end
+
+	if self.showcase then
+		for i, sec in spairs(t, sort_order) do
+			self:AddItem(nil, sec, tf and tf[i])
+		end
+	else
+		for i, obj in spairs(t, sort_order) do
+			self:AddItem(obj, nil, tf and tf[i])
+		end
+	end
+
+	-- seax patch begin
+	if original_FindFreeCell then
+		self.FindFreeCell = original_FindFreeCell
+	end
+	-- seax patch end
+
+	self.ignore_scroll = false
+	self:Print(nil, "Reset | END Number of cells: %s", #self.cell)
+
+	self:Scroll_Reinit()
+end
