@@ -36,8 +36,8 @@ Thanks to the original creators of [Sorting Plus](https://www.moddb.com/mods/sta
 
 The mod contains some scripts which are heavily modified (i.e. derived from) existing mods. Thus there can be no single license covering this entire mod.
 
-1. `scripts/seax_sortingplus_opt_sort_by_kind.script`'s sorting functions are based on SortingPlus by RavenAscendant, licensed under CC BY-NC-SA 3.0. The license requires that any derivative works are also licensed under the same license. Thus those portions are licensed under the same license.
-2. `scripts/seax_sortingplus_opt_sort_by_kind.script`'s `patched_custom_FindFreeCell` and `zzz_ray_sortingplus_mcm.script`'s overrides are based on copypasted code from G.A.M.M.A. UI mod's `utils_ui.script`. It is unclear to me what the license or who the copyright holder is for this other than that the file's header says "Tronex 2020/2/3".
+1. `src/scripts/seax_sortingplus_opt_sort_by_kind.script`'s sorting functions are based on SortingPlus by RavenAscendant, licensed under CC BY-NC-SA 3.0. The license requires that any derivative works are also licensed under the same license. Thus those portions are licensed under the same license.
+2. `src/scripts/seax_sortingplus_opt_sort_by_kind.script`'s `patched_custom_FindFreeCell` and `zzz_ray_sortingplus_mcm.script`'s overrides are based on copypasted code from G.A.M.M.A. UI mod's `utils_ui.script`. It is unclear to me what the license or who the copyright holder is for this other than that the file's header says "Tronex 2020/2/3".
 3. Everything else is licensed under MIT License:
 
    Copyright 2026 sea-ex

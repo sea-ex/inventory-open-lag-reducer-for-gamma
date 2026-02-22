@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. v0.1.1)'
+        description: "Release version (e.g. v0.1.1)"
         required: true
         type: string
 
@@ -20,9 +20,9 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create source zip
-        run: |
-          git archive --format=zip --output=InventoryOpenLagReducerForGAMMA-${{ inputs.version }}.zip HEAD
+      - name: Create release zip
+        # only `src` dir from HEAD
+        run: git archive --format=zip --output=InventoryOpenLagReducerForGAMMA-${{ inputs.version }}.zip HEAD:src
 
       - name: Create release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
